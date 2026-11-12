@@ -8,6 +8,7 @@ static_assert(MWMRoutingAvoidanceToll == static_cast<NSUInteger>(routing::Routin
 static_assert(MWMRoutingAvoidanceMotorway == static_cast<NSUInteger>(routing::RoutingOptions::Motorway));
 static_assert(MWMRoutingAvoidanceFerry == static_cast<NSUInteger>(routing::RoutingOptions::Ferry));
 static_assert(MWMRoutingAvoidanceDirty == static_cast<NSUInteger>(routing::RoutingOptions::Dirty));
+static_assert(MWMRoutingAvoidanceTramline == static_cast<NSUInteger>(routing::RoutingOptions::Tramline));
 
 @interface MWMRoutingOptions ()
 {
@@ -75,9 +76,19 @@ static_assert(MWMRoutingAvoidanceDirty == static_cast<NSUInteger>(routing::Routi
   [self setOption:(routing::RoutingOptions::Road::Motorway) enabled:avoid];
 }
 
+- (BOOL)avoidTramline
+{
+  return _options.Has(routing::RoutingOptions::Road::Tramline);
+}
+
+- (void)setAvoidTramline:(BOOL)avoid
+{
+  [self setOption:(routing::RoutingOptions::Road::Tramline) enabled:avoid];
+}
+
 - (BOOL)hasOptions
 {
-  return self.avoidToll || self.avoidDirty || self.avoidFerry || self.avoidMotorway;
+  return _options.GetOptions() != 0;
 }
 
 - (BOOL)routeOptimizationEnabled

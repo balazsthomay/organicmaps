@@ -17,6 +17,7 @@
 #include "traffic/traffic_cache.hpp"
 
 #include <functional>
+#include <string>
 
 namespace routing_preference_tests
 {
@@ -33,9 +34,9 @@ public:
   uint32_t m_ferryFeature = 0;
   std::function<void()> m_onCountryLookup;
 
-  RoutingPreferenceFixture()
+  explicit RoutingPreferenceFixture(std::string const & fileName = "routing_options.osm")
   {
-    BuildFB(GetPlatform().ReadPathForFile("test_data/osm/routing_options.osm"), "Germany");
+    BuildFB(GetPlatform().ReadPathForFile("test_data/osm/" + fileName), "Germany");
     BuildFeatures("Germany");
     BuildRouting("Germany", "Germany");
     BuildCrossMwm("Germany", "Germany");
@@ -64,13 +65,15 @@ public:
     }, [this](std::string const &) { return m_bounds; }, m_ids, m_tree, m_traffic, m_data);
   }
 
-  static bool UsesFerry(RouteBase const & route)
+  static bool UsesRoadType(RouteBase const & route, RoutingOptions::Road road)
   {
     for (auto const & segment : route.GetRouteSegments())
-      if (segment.GetRoadTypes().Has(RoutingOptions::Ferry))
+      if (segment.GetRoadTypes().Has(road))
         return true;
     return false;
   }
+
+  static bool UsesFerry(RouteBase const & route) { return UsesRoadType(route, RoutingOptions::Ferry); }
 
   static RouterResultCode Calculate(IndexRouter & router, RoutesResult & result, RouterDelegate const & delegate = {},
                                     bool adjust = false, bool alternatives = false, bool intermediate = false)
@@ -92,6 +95,44 @@ private:
   RoutingOptionSetter m_bicycle{0, VehicleType::Bicycle};
   RoutingOptionSetter m_pedestrian{0, VehicleType::Pedestrian};
 };
+
+class TramlinePreferenceFixture : public RoutingPreferenceFixture
+{
+public:
+  TramlinePreferenceFixture() : RoutingPreferenceFixture("tramline_options.osm") {}
+};
+
+UNIT_CLASS_TEST(TramlinePreferenceFixture, TramlineAvoidanceCanBeToggledWithOtherOptions)
+{
+  auto router = Router(VehicleType::Bicycle);
+  for (bool const avoid : {false, true, false})
+  {
+    RoutingOptions options(RoutingOptions::Ferry);
+    if (avoid)
+      options.Add(RoutingOptions::Tramline);
+    RoutingOptions::SaveToSettings(VehicleType::Bicycle, options);
+
+    RoutesResult result;
+    TEST_EQUAL(Calculate(*router, result, {}, false, true), RouterResultCode::NoError, (avoid));
+    if (avoid)
+      for (auto const & route : result.m_routes)
+        TEST(!UsesRoadType(route, RoutingOptions::Tramline), ());
+    TEST_EQUAL(UsesRoadType(result.GetActive(), RoutingOptions::Tramline), !avoid, (avoid));
+    TEST(RoutingOptions::LoadFromSettings(VehicleType::Bicycle).Has(RoutingOptions::Ferry), ());
+  }
+}
+
+UNIT_CLASS_TEST(TramlinePreferenceFixture, TramlineAvoidanceDoesNotAffectOtherRoadModes)
+{
+  RoutingOptions::SaveToSettings(VehicleType::Bicycle, RoutingOptions(RoutingOptions::Tramline));
+  for (auto const vehicle : {VehicleType::Car, VehicleType::Bicycle, VehicleType::Pedestrian})
+  {
+    auto router = Router(vehicle);
+    RoutesResult result;
+    TEST_EQUAL(Calculate(*router, result), RouterResultCode::NoError, (vehicle));
+    TEST_EQUAL(UsesRoadType(result.GetActive(), RoutingOptions::Tramline), vehicle != VehicleType::Bicycle, (vehicle));
+  }
+}
 
 UNIT_CLASS_TEST(RoutingPreferenceFixture, CarFerryAvoidanceDoesNotAffectOtherRoadModes)
 {

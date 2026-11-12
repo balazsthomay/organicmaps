@@ -1787,3 +1787,5 @@ natural|hill;1656;
 natural|arch;1657;
 railway|station|subway|suzhou;[railway=station][transport=subway][city=suzhou],[railway=station][station=subway][city=suzhou];;name;int_name;1658;
 railway|subway_entrance|suzhou;[railway=subway_entrance][city=suzhou];;name;int_name;1659;
+# Keep embedded tram rails on the highway feature for bicycle routing.
+hwtag|tramline;[highway][embedded_rails=tram];;;;1660;

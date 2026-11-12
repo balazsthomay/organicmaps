@@ -38,7 +38,7 @@ RoutingOptions::RoadType RoutingOptions::GetSupportedOptions(VehicleType vehicle
   switch (vehicleType)
   {
   case VehicleType::Car: return Toll | Motorway | Ferry | Dirty;
-  case VehicleType::Bicycle:
+  case VehicleType::Bicycle: return Ferry | Tramline;
   case VehicleType::Pedestrian: return Ferry;
   case VehicleType::Transit: return 0;
   case VehicleType::Count: break;
@@ -71,7 +71,8 @@ std::optional<RoutingOptions::Road> RoutingOptions::RoadFromId(uint32_t id)
   case Motorway:
   case Ferry:
   case Dirty:
-  case Steps: return static_cast<Road>(id);
+  case Steps:
+  case Tramline: return static_cast<Road>(id);
   default: return {};
   }
 }
@@ -139,7 +140,10 @@ RoutingOptionsClassifier::RoutingOptionsClassifier()
       {{"psurface", "unpaved_bad"}, RoutingOptions::Road::Dirty},
       {{"psurface", "unpaved_good"}, RoutingOptions::Road::Dirty},
 
-      {{"highway", "steps"}, RoutingOptions::Road::Steps}};
+      {{"highway", "steps"}, RoutingOptions::Road::Steps},
+
+      {{"railway", "tram"}, RoutingOptions::Road::Tramline},
+      {{"hwtag", "tramline"}, RoutingOptions::Road::Tramline}};
 
   m_data.Reserve(std::size(types));
   for (auto const & data : types)
@@ -184,6 +188,7 @@ std::string DebugPrint(RoutingOptions const & routingOptions)
   append(RoutingOptions::Road::Ferry);
   append(RoutingOptions::Road::Dirty);
   append(RoutingOptions::Road::Steps);
+  append(RoutingOptions::Road::Tramline);
 
   if (wasAppended)
     ss << " | ";
@@ -202,6 +207,7 @@ std::string DebugPrint(RoutingOptions::Road type)
   case RoutingOptions::Road::Ferry: return "ferry";
   case RoutingOptions::Road::Dirty: return "dirty";
   case RoutingOptions::Road::Steps: return "steps";
+  case RoutingOptions::Road::Tramline: return "tramline";
   case RoutingOptions::Road::Usual: return "usual";
   case RoutingOptions::Road::Max: return "max";
   }

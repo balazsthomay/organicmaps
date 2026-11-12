@@ -10,6 +10,8 @@
 
 #include "base/string_utils.hpp"
 
+#include <QtCore/QSignalBlocker>
+
 #include <QtWidgets/QComboBox>
 #include <QtWidgets/QDialogButtonBox>
 #include <QtWidgets/QFormLayout>
@@ -138,6 +140,31 @@ RoutingSettings::RoutingSettings(QWidget * parent, Framework & framework, kml::T
     m_routerType->insertItem(static_cast<int>(RouterType::Ruler), Tr("ruler"));
     form->addRow(Tr("routing_mode"), m_routerType);
 
+    auto const addAvoidance = [&](RoutingOptions::Road road, char const * title)
+    {
+      auto * checkbox = new QCheckBox(Tr(title), frame);
+      checkbox->setObjectName(title);
+      m_avoidCheckboxes.emplace_back(road, checkbox);
+      form->addRow(checkbox);
+      QObject::connect(checkbox, &QCheckBox::toggled, this, [this, road](bool checked)
+      {
+        auto const vehicle = RoutingOptions::GetVehicleType(static_cast<RouterType>(m_routerType->currentIndex()));
+        if (!vehicle)
+          return;
+        auto & options = m_avoidOptions[static_cast<size_t>(*vehicle)];
+        if (checked)
+          options.Add(road);
+        else
+          options.Remove(road);
+      });
+    };
+    addAvoidance(RoutingOptions::Toll, "avoid_tolls");
+    addAvoidance(RoutingOptions::Dirty, "avoid_unpaved");
+    addAvoidance(RoutingOptions::Ferry, "avoid_ferry");
+    addAvoidance(RoutingOptions::Motorway, "avoid_motorways");
+    addAvoidance(RoutingOptions::Tramline, "avoid_tramlines");
+    QObject::connect(m_routerType, &QComboBox::currentIndexChanged, this, [this] { UpdateAvoidanceOptions(); });
+
     m_showTurnsCheckbox = new QCheckBox({}, frame);
     form->addRow(Tr("show_route_turns"), m_showTurnsCheckbox);
 
@@ -196,15 +223,23 @@ bool RoutingSettings::ValidateAndSaveCoordsFromInput()
 
 bool RoutingSettings::SaveSettings()
 {
+  if (!ValidateAndSaveCoordsFromInput())
+    return false;
+
   settings::Set(kShowTurnsSettings, m_showTurnsCheckbox->isChecked());
   settings::Set(kUseDebugGuideSettings, m_useDebugGuideCheckbox->isChecked());
   settings::Set(kUseCachedRoutingSettings, m_saveSessionCheckbox->isChecked());
   settings::Set(kRouterTypeCachedSettings, m_routerType->currentIndex());
-  return ValidateAndSaveCoordsFromInput();
+  for (auto const vehicle : {routing::VehicleType::Car, routing::VehicleType::Bicycle, routing::VehicleType::Pedestrian})
+    routing::RoutingOptions::SaveToSettings(vehicle, m_avoidOptions[static_cast<size_t>(vehicle)]);
+  return true;
 }
 
 void RoutingSettings::LoadSettings()
 {
+  for (auto const vehicle : {routing::VehicleType::Car, routing::VehicleType::Bicycle, routing::VehicleType::Pedestrian})
+    m_avoidOptions[static_cast<size_t>(vehicle)] = routing::RoutingOptions::LoadFromSettings(vehicle);
+
   std::string startCoordsText;
   settings::TryGet(kStartCoordsCachedSettings, startCoordsText);
   m_startInput->setText(startCoordsText.c_str());
@@ -228,12 +263,35 @@ void RoutingSettings::LoadSettings()
   bool saveSession = false;
   settings::TryGet(kUseCachedRoutingSettings, saveSession);
   m_saveSessionCheckbox->setChecked(saveSession);
+  UpdateAvoidanceOptions();
+}
+
+void RoutingSettings::UpdateAvoidanceOptions()
+{
+  using namespace routing;
+  auto const vehicle = RoutingOptions::GetVehicleType(static_cast<RouterType>(m_routerType->currentIndex()));
+  auto const supported = vehicle ? RoutingOptions::GetSupportedOptions(*vehicle) : 0;
+  for (auto const & [road, checkbox] : m_avoidCheckboxes)
+  {
+    QSignalBlocker const blocker(checkbox);
+    checkbox->setVisible((supported & road) != 0);
+    checkbox->setChecked(vehicle && m_avoidOptions[static_cast<size_t>(*vehicle)].Has(road));
+  }
 }
 
 void RoutingSettings::ShowModal()
 {
   if (exec() != QDialog::Accepted)
     return;
+
+  using namespace routing;
+  auto & routingManager = m_framework.GetRoutingManager();
+  auto const routerType = static_cast<RouterType>(m_routerType->currentIndex());
+  auto const vehicle = RoutingOptions::GetVehicleType(routerType);
+  bool const optionsChanged = vehicle && RoutingOptions::LoadFromSettings(*vehicle).GetOptions() !=
+                                            m_avoidOptions[static_cast<size_t>(*vehicle)].GetOptions();
+  bool const rebuild = !routingManager.IsRoutingFollowing() && routingManager.GetRoutePointsCount() >= 2 &&
+                       (routingManager.GetCurrentRouterType() != routerType || optionsChanged);
 
   if (!SaveSettings())
   {
@@ -242,7 +300,8 @@ void RoutingSettings::ShowModal()
     return;
   }
 
-  int const routerType = m_routerType->currentIndex();
-  m_framework.GetRoutingManager().SetRouter(static_cast<routing::RouterType>(routerType));
+  routingManager.SetRouter(routerType);
+  if (rebuild)
+    routingManager.BuildRoute();
 }
 }  // namespace qt

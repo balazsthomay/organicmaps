@@ -27939,9 +27939,14 @@ vi = Tự động sắp xếp lại các điểm dừng trung gian để tạo t
 zh-Hans = 自动重新排列经停点，以生成更高效的路线。
 zh-Hant = 自動重新排列中途點，以建立更有效率的路線。
 
+[avoid_tramlines]
+comment = Cycling routing option to avoid roads with tram rails.
+tags = android-app,apple-maps,qt
+en = Avoid tram tracks
+
 [avoid_tolls]
 comment = Recommended length for CarPlay and Android Auto is around 25-27 characters
-tags = android-app,android-libs-car,apple-maps
+tags = android-app,android-libs-car,apple-maps,qt
 en = Avoid tolls
 af = Vermy tolgelde
 ar = تجنب الطرق ذات الرسوم
@@ -27999,7 +28004,7 @@ zh-Hant = 避開收費公路
 
 [avoid_unpaved]
 comment = Recommended length for CarPlay and Android Auto is around 25-27 characters
-tags = android-app,android-libs-car,apple-maps
+tags = android-app,android-libs-car,apple-maps,qt
 en = Avoid unpaved roads
 af = Vermy grondpaaie
 ar = تجنب الطرق الغير معبدة
@@ -28057,7 +28062,7 @@ zh-Hant = 避開無鋪面道路
 
 [avoid_ferry]
 comment = Recommended length for CarPlay and Android Auto is around 25-27 characters
-tags = android-app,android-libs-car,apple-maps
+tags = android-app,android-libs-car,apple-maps,qt
 en = Avoid ferries
 af = Vermy veerbootkruisings
 ar = تجنب استخدام العبّارات
@@ -28114,7 +28119,7 @@ zh-Hans = 避开轮渡
 zh-Hant = 避開渡輪
 
 [avoid_motorways]
-tags = android-app,android-libs-car,apple-maps
+tags = android-app,android-libs-car,apple-maps,qt
 en = Avoid freeways
 af = Vermy snelweë
 ar = تجنب الطريق السريع

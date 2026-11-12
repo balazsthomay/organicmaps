@@ -34,6 +34,17 @@ public class DrivingOptionsFragmentTest
   }
 
   @Test
+  public void tramlineChangesRebuildOnlyTheActiveCyclingRoute() throws ReflectiveOperationException
+  {
+    final Map<Router, Set<RoadType>> before = Map.of(Router.Bicycle, EnumSet.of(RoadType.Ferry));
+    final Map<Router, Set<RoadType>> after = Map.of(Router.Bicycle, EnumSet.of(RoadType.Ferry, RoadType.Tramline));
+    verify(stop(before, Router.Bicycle, after)).onRoutingOptionsChanged();
+    verify(stop(after, Router.Bicycle, before)).onRoutingOptionsChanged();
+    verify(stop(after, Router.Bicycle, after), never()).onRoutingOptionsChanged();
+    verify(stop(before, Router.Vehicle, after), never()).onRoutingOptionsChanged();
+  }
+
+  @Test
   public void aModeSwitchedElsewhereIsComparedWithItsOwnOptions() throws ReflectiveOperationException
   {
     final Map<Router, Set<RoadType>> loaded = Map.of(Router.Pedestrian, EnumSet.of(RoadType.Ferry));

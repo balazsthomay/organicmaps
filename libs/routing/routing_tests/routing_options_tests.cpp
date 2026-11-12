@@ -1,7 +1,11 @@
 #include "testing/testing.hpp"
 
+#include "generator/generator_tests_support/test_with_classificator.hpp"
+
 #include "routing/router.hpp"
 #include "routing/routing_options.hpp"
+
+#include "indexer/classificator.hpp"
 
 #include "platform/settings.hpp"
 
@@ -13,6 +17,7 @@
 #include <vector>
 
 using namespace routing;
+using generator::tests_support::TestWithClassificator;
 
 namespace
 {
@@ -66,6 +71,8 @@ UNIT_TEST(RoutingOptionTest)
   Checker({RoutingOptions::Road::Dirty});
   Checker({RoutingOptions::Road::Toll});
   Checker({RoutingOptions::Road::Dirty, RoutingOptions::Road::Motorway});
+  Checker({RoutingOptions::Road::Tramline});
+  Checker({RoutingOptions::Road::Tramline, RoutingOptions::Road::Ferry});
   Checker({});
 }
 
@@ -146,16 +153,46 @@ UNIT_CLASS_TEST(RoutingOptionsTests, SetterRestoresAbsentKeysAndRawValues)
   TEST_EQUAL(value, "255", ());
 }
 
+UNIT_CLASS_TEST(RoutingOptionsTests, TramlineAvoidanceIsBicycleOnly)
+{
+  for (auto const vehicle : {VehicleType::Car, VehicleType::Bicycle, VehicleType::Pedestrian, VehicleType::Transit})
+  {
+    RoutingOptions::SaveToSettings(vehicle, CreateOptions({RoutingOptions::Tramline, RoutingOptions::Ferry}));
+    auto const options = RoutingOptions::LoadFromSettings(vehicle);
+    TEST_EQUAL(options.Has(RoutingOptions::Tramline), vehicle == VehicleType::Bicycle, (vehicle));
+    TEST_EQUAL(options.Has(RoutingOptions::Ferry), vehicle != VehicleType::Transit, (vehicle));
+  }
+
+  auto options = RoutingOptions::LoadFromSettings(VehicleType::Bicycle);
+  options.Remove(RoutingOptions::Tramline);
+  RoutingOptions::SaveToSettings(VehicleType::Bicycle, options);
+  TEST_EQUAL(RoutingOptions::LoadFromSettings(VehicleType::Bicycle).GetOptions(), RoutingOptions::Ferry, ());
+}
+
+UNIT_CLASS_TEST(TestWithClassificator, RoutingOptions_TramlineClassifier)
+{
+  auto const & classifier = RoutingOptionsClassifier::Instance();
+  for (auto const & path : std::vector<std::vector<std::string>>{
+           {"railway", "tram"}, {"railway", "tram", "bridge"}, {"railway", "tram", "tunnel"}, {"hwtag", "tramline"}})
+  {
+    auto const road = classifier.Get(classif().GetTypeByPath(path));
+    TEST(road, (path));
+    TEST_EQUAL(*road, RoutingOptions::Tramline, (path));
+  }
+  TEST(!classifier.Get(classif().GetTypeByPath({"highway", "residential"})), ());
+  TEST(!classifier.Get(classif().GetTypeByPath({"railway", "tram_stop"})), ());
+}
+
 UNIT_TEST(RoutingOptions_StableIdsAndRouterConversion)
 {
   for (auto const road : {RoutingOptions::Usual, RoutingOptions::Toll, RoutingOptions::Motorway, RoutingOptions::Ferry,
-                          RoutingOptions::Dirty, RoutingOptions::Steps})
+                          RoutingOptions::Dirty, RoutingOptions::Steps, RoutingOptions::Tramline})
   {
     auto const parsed = RoutingOptions::RoadFromId(static_cast<uint32_t>(road));
     TEST(parsed, (road));
     TEST_EQUAL(*parsed, road, ());
   }
-  for (uint32_t const invalid : {0u, 3u, 6u, 33u, 64u, 256u, 0xffffffffu})
+  for (uint32_t const invalid : {0u, 3u, 6u, 33u, 65u, 128u, 256u, 0xffffffffu})
     TEST(!RoutingOptions::RoadFromId(invalid), (invalid));
   TEST(RoutingOptions::GetVehicleType(RouterType::Vehicle) == VehicleType::Car, ());
   TEST(RoutingOptions::GetVehicleType(RouterType::Bicycle) == VehicleType::Bicycle, ());
@@ -163,7 +200,8 @@ UNIT_TEST(RoutingOptions_StableIdsAndRouterConversion)
   TEST(RoutingOptions::GetVehicleType(RouterType::Transit) == VehicleType::Transit, ());
   TEST(!RoutingOptions::GetVehicleType(RouterType::Ruler), ());
   TEST_EQUAL(RoutingOptions::GetSupportedOptions(VehicleType::Car), 30, ());
-  TEST_EQUAL(RoutingOptions::GetSupportedOptions(VehicleType::Bicycle), 8, ());
+  TEST_EQUAL(static_cast<uint32_t>(RoutingOptions::Tramline), 64, ());
+  TEST_EQUAL(RoutingOptions::GetSupportedOptions(VehicleType::Bicycle), 72, ());
   TEST_EQUAL(RoutingOptions::GetSupportedOptions(VehicleType::Pedestrian), 8, ());
   TEST_EQUAL(RoutingOptions::GetSupportedOptions(VehicleType::Transit), 0, ());
 }

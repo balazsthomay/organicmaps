@@ -51,3 +51,8 @@ target_link_libraries(create_feature_dialog_tests PRIVATE qt_common)
 set_target_properties(create_feature_dialog_tests PROPERTIES AUTOMOC ON)
 omim_add_qt_translations(create_feature_dialog_tests)
 set_tests_properties(create_feature_dialog_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
+
+omim_add_test(routing_settings_dialog_tests routing_settings_dialog_tests.cpp ../routing_settings_dialog.cpp)
+target_link_libraries(routing_settings_dialog_tests PRIVATE qt_common)
+omim_add_qt_translations(routing_settings_dialog_tests)
+set_tests_properties(routing_settings_dialog_tests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

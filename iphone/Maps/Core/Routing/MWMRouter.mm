@@ -703,6 +703,7 @@ using namespace routing;
   case MWMRoadTypeDirty: options.avoidDirty = YES; break;
   case MWMRoadTypeFerry: options.avoidFerry = YES; break;
   case MWMRoadTypeMotorway: options.avoidMotorway = YES; break;
+  case MWMRoadTypeTramline: options.avoidTramline = YES; break;
   }
   [options save];
   [self rebuildWithBestRouter:YES];

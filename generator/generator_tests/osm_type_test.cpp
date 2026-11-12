@@ -95,6 +95,21 @@ UNIT_CLASS_TEST(TestWithClassificator, OsmType_SkipDummy)
   TEST_EQUAL(params.m_types[0], GetType({"highway", "primary"}), ());
 }
 
+UNIT_CLASS_TEST(TestWithClassificator, OsmType_EmbeddedTramRails)
+{
+  TestTypes({{"highway", "residential"}, {"embedded_rails", "tram"}},
+            {{"highway", "residential"}, {"hwtag", "tramline"}});
+  TestTypes({{"highway", "residential"}, {"railway", "tram"}},
+            {{"highway", "residential"}, {"railway", "tram"}});
+
+  for (auto const value : {"no", "rail", "light_rail"})
+    TestTypes({{"highway", "residential"}, {"embedded_rails", value}}, {{"highway", "residential"}});
+  TestTypes({{"highway", "residential"}}, {{"highway", "residential"}});
+  TestTypes({{"railway", "tram"}, {"embedded_rails", "tram"}}, {{"railway", "tram"}});
+
+  TEST(feature::IsUsefulType(GetType({"hwtag", "tramline"})), ());
+}
+
 UNIT_CLASS_TEST(TestWithClassificator, OsmType_Oneway)
 {
   {

@@ -105,6 +105,6 @@ extension CGRect {
 
 extension RoutingOptions {
   var enabledOptionsCount: Int {
-    [avoidToll, avoidDirty, avoidFerry, avoidMotorway].filter { $0 }.count
+    [avoidToll, avoidDirty, avoidFerry, avoidMotorway, avoidTramline].filter { $0 }.count
   }
 }

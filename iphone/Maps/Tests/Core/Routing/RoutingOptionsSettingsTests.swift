@@ -16,22 +16,57 @@ final class RoutingOptionsSettingsTests: XCTestCase {
     let walk = RoutingOptions(routerType: .pedestrian)
     car.avoidFerry = false
     car.avoidToll = true
+    car.avoidTramline = true
     car.save()
     bike.avoidFerry = true
     bike.avoidDirty = true
+    bike.avoidTramline = true
     bike.save()
     walk.avoidFerry = false
+    walk.avoidTramline = true
     walk.save()
 
     XCTAssertTrue(RoutingOptions(routerType: .vehicle).avoidToll)
     XCTAssertFalse(RoutingOptions(routerType: .vehicle).avoidFerry)
     XCTAssertTrue(RoutingOptions(routerType: .bicycle).avoidFerry)
     XCTAssertFalse(RoutingOptions(routerType: .bicycle).avoidDirty)
+    XCTAssertTrue(RoutingOptions(routerType: .bicycle).avoidTramline)
+    XCTAssertFalse(RoutingOptions(routerType: .vehicle).avoidTramline)
+    XCTAssertFalse(RoutingOptions(routerType: .pedestrian).avoidTramline)
     XCTAssertFalse(RoutingOptions(routerType: .pedestrian).avoidFerry)
-    XCTAssertEqual(RoutingOption.avoidanceOptions.filter { $0.isSupported(in: bike) }, [.ferryCrossings])
+    XCTAssertEqual(RoutingOption.avoidanceOptions.filter { $0.isSupported(in: bike) }, [.ferryCrossings, .tramlines])
     XCTAssertEqual(RoutingOption.avoidanceOptions.filter { $0.isSupported(in: walk) }, [.ferryCrossings])
     XCTAssertTrue(RoutingOptions(routerType: .publicTransport).supportedOptions.isEmpty)
     XCTAssertTrue(RoutingOptions(routerType: .ruler).supportedOptions.isEmpty)
+  }
+
+  func test_TramlineToggleUpdatesPersistenceEqualityAndBadge() {
+    let saved = RoutingOptions(routerType: .bicycle)
+    defer { saved.save() }
+    let options = RoutingOptions(routerType: .bicycle)
+    options.avoidFerry = false
+    options.avoidTramline = false
+    options.save()
+    let before = RoutingOptions(routerType: .bicycle)
+    XCTAssertFalse(before.hasOptions)
+    XCTAssertEqual(before.enabledOptionsCount, 0)
+    XCTAssertEqual(RoutingAvoidance.tramline.rawValue, 64)
+
+    RoutingOption.tramlines.setEnabled(true, in: options)
+    options.save()
+    let enabled = RoutingOptions(routerType: .bicycle)
+    XCTAssertTrue(RoutingOption.tramlines.isEnabled(in: enabled))
+    XCTAssertTrue(enabled.hasOptions)
+    XCTAssertEqual(enabled.enabledOptionsCount, 1)
+    XCTAssertNotEqual(before, enabled)
+
+    options.avoidFerry = true
+    RoutingOption.tramlines.setEnabled(false, in: options)
+    options.save()
+    let disabled = RoutingOptions(routerType: .bicycle)
+    XCTAssertFalse(disabled.avoidTramline)
+    XCTAssertTrue(disabled.avoidFerry)
+    XCTAssertEqual(disabled.enabledOptionsCount, 1)
   }
 
   func test_RoutingOptionsEqualityIncludesProfile() {
@@ -110,7 +145,10 @@ final class RoutingOptionsSettingsTests: XCTestCase {
     interactor.handle(.didLoad)
     MWMRouter.setType(.pedestrian)
     interactor.handle(.didChangeSwitch(.ferryCrossings, isOn: true))
+    interactor.handle(.didChangeSwitch(.tramlines, isOn: true))
     XCTAssertTrue(RoutingOptions(routerType: .bicycle).avoidFerry)
+    XCTAssertTrue(RoutingOptions(routerType: .bicycle).avoidTramline)
     XCTAssertFalse(RoutingOptions(routerType: .pedestrian).avoidFerry)
+    XCTAssertFalse(RoutingOptions(routerType: .pedestrian).avoidTramline)
   }
 }
